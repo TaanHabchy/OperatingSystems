@@ -1,0 +1,109 @@
+#include "kernel/types.h"
+#include "kernel/stat.h"
+#include "user/user.h"
+#include "kernel/fs.h"
+
+/**
+ * find all the files in a path tree that contain a specific name
+ *
+ * Use recursion to allow find to descend into sub-directories
+ * DONT recurse into "." and ".."
+ * run "make clean" to clean file system
+ * REMEMBER the null charachter '\0' to end a string
+ * Use strcmp() to compare strings
+ */
+
+char *
+fmtname(char *path)
+{
+
+  char *p;
+
+  // Find first character after last slash.
+  for (p = path + strlen(path); p >= path && *p != '/'; p--)
+    ;
+  p++;
+
+  return p;
+}
+
+void find(char *path, char *file)
+{
+  char buf[512], *p;
+  int fd;
+  struct dirent de;
+  struct stat st;
+
+  if ((fd = open(path, 0)) < 0)
+  {
+    fprintf(2, "Cannot open the path: %s\n", path);
+    return;
+  }
+
+  if (fstat(fd, &st) < 0)
+  {
+    fprintf(2, "Cannot stat the file: %s\n", file);
+    close(fd);
+    return;
+  }
+
+  if (st.type == T_FILE)
+  {
+    if (strcmp(fmtname(path), file) == 0)
+    {
+      printf("%s\n", path);
+      return;
+    }
+  }
+
+  if (st.type == T_DIR)
+  {
+    if (strlen(path) + 1 + DIRSIZ + 1 > sizeof buf)
+    {
+      printf("The path too long\n");
+      return;
+    }
+    strcpy(buf, path);     // buff now equals path as a string
+    p = buf + strlen(buf); // p now points to the last charachter of buf, which has been copied to path
+    *p++ = '/';            // Adds a back slash to p,
+    while (read(fd, &de, sizeof(de)) == sizeof(de))
+    {
+      if (de.inum == 0) // if not existent, skip it
+        continue;
+      memmove(p, de.name, DIRSIZ); //
+      p[DIRSIZ] = 0;               // add null charachter to end of it
+      if (stat(buf, &st) < 0)
+      {
+        printf("Cannot stat the buf: %s\n", buf);
+        continue;
+      }
+
+      if (strcmp(p, ".") == 0 || strcmp(p, "..") == 0)
+      {
+        continue;
+      }
+      find(buf, file);
+    }
+  }
+  close(fd);
+}
+
+int main(int argc, char *argv[])
+{
+  if (argc < 3)
+  {
+    printf("Input a path and file\n");
+  }
+
+  else if (argc == 3)
+  {
+    find(argv[1], argv[2]);
+  }
+
+  else
+  {
+    printf("Input a path and file\n");
+  }
+
+  exit(0);
+}
