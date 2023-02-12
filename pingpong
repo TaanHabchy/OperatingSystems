@@ -1,0 +1,31 @@
+#include "kernel/types.h"
+#include "kernel/stat.h"
+#include "user/user.h"
+
+int main(int argc, char *argv[]){
+
+    int pToParent[2];
+    int pToChild[2];
+
+    pipe(pToParent);
+    pipe(pToChild);
+    int pid = fork(); 
+
+    if(pid == 0){
+        char byte[1];
+        read(pToChild[0], byte, 1);
+        printf("%d: received ping\n", getpid());
+        write(pToParent[1], " ", 1);
+        close(pToChild[1]); 
+        close(pToChild[0]);
+    }
+    else{
+        char byte[1];
+        write(pToChild[1], " ", 1);
+        read(pToParent[0], byte, 1);
+        printf("%d: received pong\n", getpid());
+        close(pToParent[0]);
+        close(pToParent[1]);
+    }
+    exit(0);
+}    
